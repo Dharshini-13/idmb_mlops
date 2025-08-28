@@ -1,14 +1,22 @@
-name: CI - Test, DVC, and Build
+name: IMDB Sentiment Workflow (Demo)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  test-and-dvc:
+  train:
     runs-on: ubuntu-latest
+
+    env:
+      DAGSHUB_USER: "Dharsh"
+      DAGSHUB_TOKEN: "4f3284cea30d20043975370eef81965d94e13fe1"
+      DAGSHUB_REPO: "dharsh/imdb-response-demo"
+      MLFLOW_TRACKING_URI: "https://dagshub.com/Dharsh/imdb-response-demo.mlflow"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -16,45 +24,36 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.10"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install dvc[all]
+          pip install dvc[all] dagshub mlflow
 
-      - name: Run tests
+      - name: Configure Git & DVC remote
         run: |
-          pytest -q || (echo "Some tests failed" && false)
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          dvc remote remove dagshub || echo "No existing remote"
+          dvc remote add -d dagshub https://dagshub.com/Dharsh/imdb-response-demo.dvc
+          dvc remote modify dagshub --local auth basic
+          dvc remote modify dagshub --local user Dharsh
+          dvc remote modify dagshub --local password 4f3284cea30d20043975370eef81965d94e13fe1
 
-      - name: Initialize DVC (if not already)
-        run: |
-          dvc init --force || true
+      - name: Pull dataset from Dagshub
+        run: dvc pull -r dagshub
 
-      - name: DVC Pull (download artifacts)
-        env:
-          DVC_REMOTE_URL: ${{ secrets.DVC_REMOTE_URL }}
-          DVC_REMOTE_TOKEN: ${{ secrets.DVC_REMOTE_TOKEN }}
-        run: |
-          if [ -n "${DVC_REMOTE_URL}" ]; then
-            dvc remote add -f storage "${DVC_REMOTE_URL}"
-            if [ -n "${DVC_REMOTE_TOKEN}" ]; then
-              export DVC_HTTP_TOKEN="${DVC_REMOTE_TOKEN}"
-            fi
-            dvc pull -v || true
-          else
-            echo "No DVC remote configured; skipping dvc pull."
-          fi
+      - name: Run training
+        run: python src/train.py
 
-      - name: Reproduce DVC pipeline
+      - name: Commit DVC outputs
         run: |
-          dvc repro || true
+          dvc commit
+          git add dvc.lock .dvc/config
+          git commit -m "Auto: update model artifacts" || echo "No changes"
+          git push origin main
 
-      - name: (Optional) Push DVC artifacts to remote on main
-        if: github.ref == 'refs/heads/main' && secrets.DVC_REMOTE_URL != ''
-        env:
-          DVC_REMOTE_URL: ${{ secrets.DVC_REMOTE_URL }}
-          DVC_REMOTE_TOKEN: ${{ secrets.DVC_REMOTE_TOKEN }}
-        run: |
-          dvc push -v || true
+      - name: Push DVC artifacts to Dagshub
+        run: dvc push -r dagshub
