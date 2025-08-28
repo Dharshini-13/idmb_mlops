@@ -32,16 +32,6 @@ jobs:
           pip install -r requirements.txt
           pip install dvc[all] dagshub mlflow
 
-      - name: Configure Git & DVC remote
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          dvc remote remove dagshub || echo "No existing remote"
-          dvc remote add -d dagshub https://dagshub.com/Dharsh/imdb-response-demo.dvc
-          dvc remote modify dagshub --local auth basic
-          dvc remote modify dagshub --local user Dharsh
-          dvc remote modify dagshub --local password 4f3284cea30d20043975370eef81965d94e13fe1
-
       - name: Pull dataset from Dagshub
         run: dvc pull -r dagshub
 
@@ -51,7 +41,7 @@ jobs:
       - name: Commit DVC outputs
         run: |
           dvc commit
-          git add dvc.lock .dvc/config
+          git add dvc.lock
           git commit -m "Auto: update model artifacts" || echo "No changes"
           git push origin main
 
