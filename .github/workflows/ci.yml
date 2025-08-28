@@ -37,13 +37,19 @@ jobs:
           pip install -r requirements.txt
           pip install dvc[all] dagshub mlflow
 
-      # Pull datasets from Dagshub
+      # Pull datasets from Dagshub (force overwrite local)
       - name: Pull dataset from Dagshub
-        run: dvc pull -r dagshub
+        run: dvc pull -r dagshub --force
 
       # Run the training script
       - name: Run training
         run: python src/train.py
+
+      # Configure Git for commits
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
 
       # Commit any changes to DVC outputs
       - name: Commit DVC outputs
@@ -56,4 +62,5 @@ jobs:
       # Push DVC-tracked artifacts to Dagshub
       - name: Push DVC artifacts to Dagshub
         run: dvc push -r dagshub
+
 
