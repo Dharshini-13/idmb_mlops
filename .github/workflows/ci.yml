@@ -9,6 +9,9 @@ on:
 jobs:
   build-and-train:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./
 
     steps:
       # ------------------------
@@ -47,7 +50,9 @@ jobs:
       # Pull all DVC outputs
       # ------------------------
       - name: Pull DVC outputs
-        run: dvc pull -r dagshub --force
+        run: |
+          dvc pull -r dagshub --force
+
 
       # ------------------------
       # Reproduce pipeline if needed
