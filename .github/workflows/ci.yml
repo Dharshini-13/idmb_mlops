@@ -25,7 +25,7 @@ jobs:
         source .venv/bin/activate
         pip install --upgrade pip
         pip install -r requirements.txt || pip install dvc[all] pandas scikit-learn mlflow
-      working-directory: ./IMDB-SENTIMENT-DEMO
+      
 
     - name: Configure Dagshub DVC remote (hardcoded)
       run: |
@@ -34,7 +34,7 @@ jobs:
         dvc remote modify dagshub --local user Dharsh
         dvc remote modify dagshub --local password 4f3284cea30d20043975370eef81965d94e13fe1
         dvc pull -r dagshub --force
-      working-directory: ./IMDB-SENTIMENT-DEMO
+     
 
     - name: Run training & log metrics to Dagshub MLflow (hardcoded)
       run: |
@@ -45,7 +45,7 @@ jobs:
           --env MLFLOW_TRACKING_URI=https://dagshub.com/Dharsh/imdb-sentiment-demo.mlflow \
           --env MLFLOW_TRACKING_USERNAME=Dharsh \
           --env MLFLOW_TRACKING_PASSWORD=4f3284cea30d20043975370eef81965d94e13fe1
-      working-directory: ./IMDB-SENTIMENT-DEMO
+      
 
     - name: Upload trained model/artifacts
       uses: actions/upload-artifact@v4
