@@ -10,6 +10,12 @@ jobs:
   mlops:
     runs-on: ubuntu-latest
 
+    env:
+      DAGSHUB_USER: "Dharsh"
+      DAGSHUB_TOKEN: "4f3284cea30d20043975370eef81965d94e13fe1"
+      DAGSHUB_REPO: "dharsh/imdb-response-demo"
+      MLFLOW_TRACKING_URI: "https://dagshub.com/Dharsh/imdb-response-demo.mlflow"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -23,28 +29,33 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install dvc[all] dagshub mlflow
+          pip install "dvc[all]" dagshub mlflow
+
+      - name: Configure Git
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
 
       - name: Configure DVC Remote for Dagshub
         run: |
-          dvc remote add -d dagshub https://dagshub.com/Dharsh/imdb-response-demo.dvc
+          # Force-update remote to avoid 'already exists' error
+          dvc remote add -d -f dagshub https://dagshub.com/Dharsh/imdb-response-demo.dvc
           dvc remote modify dagshub --local auth basic
-          dvc remote modify dagshub --local user Dharsh
-          dvc remote modify dagshub --local password 4f3284cea30d20043975370eef81965d94e13fe1
+          dvc remote modify dagshub --local user $DAGSHUB_USER
+          dvc remote modify dagshub --local password $DAGSHUB_TOKEN
 
-      - name: Pull data from Dagshub
+      - name: Pull data and artifacts from Dagshub
         run: dvc pull -r dagshub --force
 
       - name: Run DVC pipeline
         run: dvc repro
 
-      - name: Push data to Dagshub
+      - name: Push updated artifacts to Dagshub
         run: dvc push -r dagshub
 
-      - name: Commit and push changes (if any)
+      - name: Commit and push changes to GitHub
         run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
           git add -A
-          git commit -m "Update artifacts and metrics [skip ci]" || echo "No changes to commit"
+          git commit -m "Auto-update artifacts and metrics [skip ci]" || echo "No changes to commit"
           git push origin main || echo "No changes to push"
+
