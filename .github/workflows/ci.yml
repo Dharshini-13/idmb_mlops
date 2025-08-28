@@ -10,46 +10,44 @@ jobs:
   build-and-train:
     runs-on: ubuntu-latest
 
+    env:
+      DAGSHUB_USER: Dharsh
+      DAGSHUB_TOKEN: 4f3284cea30d20043975370eef81965d94e13fe1
+
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Python 3.10
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
 
-    - name: Install dependencies
-      run: |
-        python -m venv .venv
-        source .venv/bin/activate
-        pip install --upgrade pip
-        pip install -r requirements.txt || pip install dvc[all] pandas scikit-learn mlflow
-      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install dvc[s3] scikit-learn pandas joblib mlflow fastapi uvicorn
 
-    - name: Configure Dagshub DVC remote (hardcoded)
-      run: |
-        source .venv/bin/activate
-        dvc remote modify dagshub --local auth basic
-        dvc remote modify dagshub --local user Dharsh
-        dvc remote modify dagshub --local password 4f3284cea30d20043975370eef81965d94e13fe1
-        dvc pull -r dagshub --force
-     
+      - name: Configure DVC remote
+        run: |
+          dvc remote modify dagshub --local auth basic
+          dvc remote modify dagshub --local user $DAGSHUB_USER
+          dvc remote modify dagshub --local password $DAGSHUB_TOKEN
 
-    - name: Run training & log metrics to Dagshub MLflow (hardcoded)
-      run: |
-        source .venv/bin/activate
-        mlflow run . \
-          --experiment-name "IMDB_Sentiment" \
-          --entry-point train \
-          --env MLFLOW_TRACKING_URI=https://dagshub.com/Dharsh/imdb-sentiment-demo.mlflow \
-          --env MLFLOW_TRACKING_USERNAME=Dharsh \
-          --env MLFLOW_TRACKING_PASSWORD=4f3284cea30d20043975370eef81965d94e13fe1
-      
+      - name: Pull data and artifacts from Dagshub
+        run: |
+          dvc pull -r dagshub --force
 
-    - name: Upload trained model/artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: trained-models
-        path: ./IMDB-SENTIMENT-DEMO/artifacts/
+      - name: Verify files exist
+        run: |
+          ls -l data/processed/
+          ls -l artifacts/
+          ls -l metrics/
 
+      - name: Train model
+        run: |
+          python src/train.py
+
+      - name: Run tests / evaluation
+        run: |
+          python src/evaluate.py
