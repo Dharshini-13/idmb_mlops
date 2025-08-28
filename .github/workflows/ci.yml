@@ -10,12 +10,8 @@ jobs:
   build-and-train:
     runs-on: ubuntu-latest
 
-    env:
-      DAGSHUB_USER: Dharsh
-      DAGSHUB_TOKEN: 4f3284cea30d20043975370eef81965d94e13fe1
-
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Set up Python
@@ -28,26 +24,26 @@ jobs:
           python -m pip install --upgrade pip
           pip install dvc[s3] scikit-learn pandas joblib mlflow fastapi uvicorn
 
-      - name: Configure DVC remote
+      - name: Configure DVC remote for Dagshub
         run: |
           dvc remote modify dagshub --local auth basic
-          dvc remote modify dagshub --local user $DAGSHUB_USER
-          dvc remote modify dagshub --local password $DAGSHUB_TOKEN
+          dvc remote modify dagshub --local user Dharsh
+          dvc remote modify dagshub --local password 4f3284cea30d20043975370eef81965d94e13fe1
 
-      - name: Pull data and artifacts from Dagshub
-        run: |
-          dvc pull -r dagshub --force
+      - name: Pull all DVC tracked files from Dagshub
+        run: dvc pull -r dagshub --force
 
-      - name: Verify files exist
+      - name: Verify pulled files
         run: |
+          echo "Data files:"
           ls -l data/processed/
+          echo "Model files:"
           ls -l artifacts/
+          echo "Metrics:"
           ls -l metrics/
 
-      - name: Train model
-        run: |
-          python src/train.py
+      - name: Reproduce DVC pipeline
+        run: dvc repro
 
-      - name: Run tests / evaluation
-        run: |
-          python src/evaluate.py
+      - name: push updated outputs to Dagshub
+        run: dvc push -r dagshub
