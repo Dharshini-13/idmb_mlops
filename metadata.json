@@ -1,0 +1,5 @@
+{
+    "dataset": "Synthetic IMDB-like reviews",
+    "accuracy": 0.0,
+    "note": "Synthetic small dataset. Replace with real IMDB for production."
+}

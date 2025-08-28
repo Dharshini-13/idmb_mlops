@@ -1,0 +1,60 @@
+name: CI - Test, DVC, and Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-dvc:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install dvc[all]
+
+      - name: Run tests
+        run: |
+          pytest -q || (echo "Some tests failed" && false)
+
+      - name: Initialize DVC (if not already)
+        run: |
+          dvc init --force || true
+
+      - name: DVC Pull (download artifacts)
+        env:
+          DVC_REMOTE_URL: ${{ secrets.DVC_REMOTE_URL }}
+          DVC_REMOTE_TOKEN: ${{ secrets.DVC_REMOTE_TOKEN }}
+        run: |
+          if [ -n "${DVC_REMOTE_URL}" ]; then
+            dvc remote add -f storage "${DVC_REMOTE_URL}"
+            if [ -n "${DVC_REMOTE_TOKEN}" ]; then
+              export DVC_HTTP_TOKEN="${DVC_REMOTE_TOKEN}"
+            fi
+            dvc pull -v || true
+          else
+            echo "No DVC remote configured; skipping dvc pull."
+          fi
+
+      - name: Reproduce DVC pipeline
+        run: |
+          dvc repro || true
+
+      - name: (Optional) Push DVC artifacts to remote on main
+        if: github.ref == 'refs/heads/main' && secrets.DVC_REMOTE_URL != ''
+        env:
+          DVC_REMOTE_URL: ${{ secrets.DVC_REMOTE_URL }}
+          DVC_REMOTE_TOKEN: ${{ secrets.DVC_REMOTE_TOKEN }}
+        run: |
+          dvc push -v || true
