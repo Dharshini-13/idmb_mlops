@@ -1,0 +1,13 @@
+# DVC local stuff (never commit)
+.dvc/config.local
+.dvc/tmp/
+.dvc/cache/
+
+# Python / Virtualenv
+.venv/
+__pycache__/
+*.pyc
+
+# OS junk
+.DS_Store
+Thumbs.db
