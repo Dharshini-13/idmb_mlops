@@ -35,7 +35,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install dvc[s3]  # include your remote type if using s3/dagshub
+          pip install dvc[s3]  # adjust for your remote type
 
       # ------------------------
       # Configure DVC remote (Dagshub)
@@ -47,21 +47,25 @@ jobs:
           dvc remote modify dagshub --local password 4f3284cea30d20043975370eef81965d94e13fe1
 
       # ------------------------
-      # Remove DVC cache to force fresh pull
+      # Clean local DVC cache and outputs
       # ------------------------
-      - name: Remove existing DVC cache
+      - name: Clean DVC cache and outputs
         run: |
           rm -rf .dvc/cache
+          rm -rf data/processed/*
+          rm -rf artifacts/*
+          rm -rf metrics/*
+          rm -f model.pkl
 
       # ------------------------
-      # Pull all DVC outputs from remote
+      # Pull all DVC outputs fresh from remote
       # ------------------------
       - name: Pull DVC outputs fresh
         run: |
           dvc pull -r dagshub --force
 
       # ------------------------
-      # Reproduce pipeline if needed
+      # Reproduce pipeline if anything changed
       # ------------------------
       - name: Reproduce DVC pipeline
         run: dvc repro
@@ -75,9 +79,13 @@ jobs:
           ls -l data/processed/
           echo "Artifacts:"
           ls -l artifacts/
+          echo "Metrics:"
+          ls -l metrics/
+          echo "Model:"
+          ls -l model.pkl
 
       # ------------------------
-      # Run a simple test on API
+      # Test API import
       # ------------------------
       - name: Test API import
         run: |
